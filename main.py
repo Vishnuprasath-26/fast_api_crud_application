@@ -1,4 +1,5 @@
 
+
 from fastapi import (
     FastAPI,
     Depends,
@@ -13,7 +14,6 @@ from database import Base, engine, SessionLocal
 from models import User, Task
 from schemas import (
     UserCreate,
-    UserLogin,
     TaskCreate,
     TaskUpdate,
     TaskResponse,
@@ -25,7 +25,6 @@ from auth import (
     decode_access_token,
 )
 
-# Create database tables
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
@@ -36,7 +35,6 @@ app = FastAPI(
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
 
-# Database connection dependency
 def get_db():
     db = SessionLocal()
     try:
@@ -45,7 +43,6 @@ def get_db():
         db.close()
 
 
-# Get currently authenticated user
 def get_current_user(
     token: str = Depends(oauth2_scheme),
     db: Session = Depends(get_db),
@@ -80,13 +77,11 @@ def get_current_user(
     return user
 
 
-# Home
 @app.get("/")
 def home():
     return {"message": "FastAPI CRUD Authentication Project"}
 
 
-# Register
 @app.post(
     "/auth/register",
     status_code=status.HTTP_201_CREATED,
@@ -126,7 +121,6 @@ def register(
     }
 
 
-# Login
 @app.post("/auth/login")
 def login(
     user: OAuth2PasswordRequestForm = Depends(),
@@ -157,7 +151,17 @@ def login(
     }
 
 
-# Create a task
+@app.get("/auth/me")
+def read_current_user(
+    current_user: User = Depends(get_current_user),
+):
+    return {
+        "id": current_user.id,
+        "username": current_user.username,
+        "email": current_user.email,
+    }
+
+
 @app.post(
     "/tasks",
     response_model=TaskResponse,
@@ -180,7 +184,6 @@ def create_task(
     return new_task
 
 
-# List only the logged-in user's tasks with pagination
 @app.get("/tasks", response_model=list[TaskResponse])
 def get_tasks(
     skip: int = 0,
@@ -210,7 +213,6 @@ def get_tasks(
     )
 
 
-# Get one task
 @app.get("/tasks/{task_id}", response_model=TaskResponse)
 def get_task(
     task_id: int,
@@ -231,7 +233,6 @@ def get_task(
     return task
 
 
-# Update a task
 @app.put("/tasks/{task_id}", response_model=TaskResponse)
 def update_task(
     task_id: int,
@@ -261,8 +262,10 @@ def update_task(
     return task
 
 
-# Delete a task
-@app.delete("/tasks/{task_id}")
+@app.delete(
+    "/tasks/{task_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
 def delete_task(
     task_id: int,
     db: Session = Depends(get_db),
@@ -282,4 +285,4 @@ def delete_task(
     db.delete(task)
     db.commit()
 
-    return {"message": "Task deleted successfully"}
+    return None
